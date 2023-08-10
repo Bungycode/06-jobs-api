@@ -1,10 +1,40 @@
-const { CustomAPIError } = require('../errors')
-const { StatusCodes } = require('http-status-codes')
+// const { CustomAPIError } = require("../errors");
+const { StatusCodes } = require("http-status-codes");
 const errorHandlerMiddleware = (err, req, res, next) => {
-  if (err instanceof CustomAPIError) {
-    return res.status(err.statusCode).json({ msg: err.message })
-  }
-  return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ err })
-}
+  // console.log(err);
+  let customError = {
+    // Set as default.
+    statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+    msg: err.message || "Something went wrong, try again later!",
+  };
 
-module.exports = errorHandlerMiddleware
+  // Keeping this code for alternative purposes
+  // if (err instanceof CustomAPIError) {
+  //   console.log(err);
+  //   return res.status(err.statusCode).json({ msg: err.message });
+  // }
+
+  if (err.name === "CastError") {
+    customError.msg = `No job with id of ${err.value}`
+    customError.statusCode = 404
+  }
+
+  if (err.name === "ValidationError") {
+    console.log(Object.values(err.errors))
+    customError.msg = Object.values(err.errors).map(item => item.message).join(", ")
+    customError.statusCode = 400
+  }
+
+  if (err.code && err.code === 11000) {
+    customError.msg = `Duplicate value entered for ${Object.keys(
+      err.keyValue
+    )} field, please enter another email!`;
+    customError.statusCode = 400;
+    return res.status(customError.statusCode).json(customError.msg);
+  }
+
+  // return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ err });
+  return res.status(customError.statusCode).json({ msg: customError.msg })
+};
+
+module.exports = errorHandlerMiddleware;

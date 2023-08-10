@@ -3,18 +3,22 @@ const { StatusCodes } = require("http-status-codes");
 const { BadRequestError, NotFoundError } = require("../errors");
 
 const getAllJobs = async (req, res) => {
-  const jobs = await Job.find({ createdBy: req.user.userId });
+  const jobs = await Job.find({ createdBy: req.user.userId }).sort("createdAt");
   if (jobs.length === 0) {
     return res.json({ msg: "No jobs exist at this time!", data: jobs });
   }
-  return res.status(StatusCodes.OK).json({ jobs });
+  return res.status(StatusCodes.OK).json({ count: jobs.length, jobs });
 };
 
 const getJob = async (req, res) => {
-  const { id: position } = req.params;
-  const job = await Job.findOne({ position, createdBy: req.user.userId });
+  const {
+    user: { userId },
+    params: { id: jobId },
+  } = req;
+
+  const job = await Job.findOne({ _id: jobId, createdBy: userId });
   if (!job) {
-    return res.json({ msg: `${position} job does not exist!`, data: job });
+    throw new NotFoundError(`No job with id of ${jobId}!`);
   }
   return res.status(StatusCodes.OK).json({ job });
 };
@@ -26,28 +30,45 @@ const createJob = async (req, res) => {
 };
 
 const updateJob = async (req, res) => {
-  const { id: position } = req.params;
+  const {
+    body: { company, position },
+    user: { userId },
+    params: { id: jobId },
+  } = req;
+
+  if (company === "" || position === "") {
+    throw new NotFoundError("company or position fields cannot be empty!");
+  }
+
+  // We use req.body for the data to update instead of just "company" and "position" because the user may want to update more than just company and position. The user just has to atleast provide both company and position data for this request to work but are not limited to only updating these 2 data properties.
   const job = await Job.findOneAndUpdate(
-    { createdBy: req.user.userId, position },
-    { status: req.body.status, position: req.body.position }
+    { _id: jobId, createdBy: userId },
+    req.body,
+    {
+      new: true,
+      runValidators: true,
+    }
   );
   if (!job) {
-    return res.json({ msg: `${position} position does not exist!`, data: job });
+    throw new NotFoundError(`No job with id of ${jobId}!`);
   }
   return res.status(StatusCodes.OK).json({ job });
 };
 
 const deleteJob = async (req, res) => {
-  const { id: position } = req.params;
+  const {
+    user: { userId },
+    params: { id: jobId },
+  } = req;
+
   const job = await Job.findOneAndDelete({
-    createdBy: req.user.userId,
-    position,
-    createdBy: req.user.userId,
+    _id: jobId,
+    createdBy: userId,
   });
   if (!job) {
-    return res.json({ msg: `${position} position does not exist!`, data: job });
+    throw new NotFoundError(`No job with id of ${jobId}!`);
   }
-  return res.status(StatusCodes.OK).json({ job });
+  return res.status(StatusCodes.OK).json(`Deleted job with id of ${jobId}`);
 };
 
 module.exports = {
