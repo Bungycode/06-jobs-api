@@ -1,7 +1,6 @@
 // const { CustomAPIError } = require("../errors");
 const { StatusCodes } = require("http-status-codes");
 const errorHandlerMiddleware = (err, req, res, next) => {
-  // console.log(err);
   let customError = {
     // Set as default.
     statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
@@ -20,7 +19,6 @@ const errorHandlerMiddleware = (err, req, res, next) => {
   }
 
   if (err.name === "ValidationError") {
-    console.log(Object.values(err.errors))
     customError.msg = Object.values(err.errors).map(item => item.message).join(", ")
     customError.statusCode = 400
   }
